@@ -6,10 +6,10 @@ include CommonUtils
 include Free
 include Hist
 
-type mio_ops = | Openfile | Read | Close | Write | GetTrace | GetST
+type mio_ops = | Openfile | Read | Close | Write | Unlink | GetTrace | GetST
 
 (** the io free monad does not contain the GetTrace/GetST steps **)
-let _io_ops x : bool = x = Openfile || x = Read || x = Close || x = Write
+let _io_ops x : bool = x = Openfile || x = Read || x = Close || x = Write || x = Unlink
 type io_ops : Type = x:mio_ops{_io_ops x}
 
 unfold let io_args (op:io_ops) : Type =
@@ -18,6 +18,7 @@ unfold let io_args (op:io_ops) : Type =
   | Read -> file_descr
   | Write -> file_descr * string
   | Close -> file_descr
+  | Unlink -> string
 
 unfold let io_res (op:io_ops) : Type =
   match op with
@@ -25,6 +26,7 @@ unfold let io_res (op:io_ops) : Type =
   | Read -> string
   | Write -> unit 
   | Close -> unit
+  | Unlink -> bool
 
 unfold
 let io_resm (op:io_ops) (arg:io_args op) = resexn (io_res op)
@@ -41,7 +43,7 @@ type event =
   | ERead     : caller -> a:io_sig.args Read     -> (r:io_sig.res Read a)     -> event
   | EWrite    : caller -> a:io_sig.args Write    -> (r:io_sig.res Write a)    -> event
   | EClose    : caller -> a:io_sig.args Close    -> (r:io_sig.res Close a)    -> event
-
+  | EUnlink   : caller -> a:io_sig.args Unlink   -> (r:io_sig.res Unlink a)   -> event
 type trace = list event
 
 type m_ops = x:mio_ops{x = GetTrace || x = GetST}
@@ -114,6 +116,7 @@ let convert_call_to_event
   | Read     -> ERead caller arg r
   | Write    -> EWrite caller arg r
   | Close    -> EClose caller arg r
+  | Unlink   -> EUnlink caller arg r
 
 // OTHER TYPES & UTILS
 unfold
